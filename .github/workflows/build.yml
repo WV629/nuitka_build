@@ -30,7 +30,7 @@ jobs:
 
       # 3. 设置 Python 环境 (这里指定 3.11，你可以改)
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.11
 
       # 4. 创建虚拟环境并安装 Nuitka
       # 如果你有 requirements.txt，可以在这里加一行: uv pip install -r requirements.txt
