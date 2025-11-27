@@ -1,55 +1,111 @@
-name: Nuitka Build
+name: Build All Platforms
 
-# 触发条件：
-# 1. 当代码推送到 main 分支时自动触发
-# 2. 允许你在网页上有一个按钮手动点击触发 (workflow_dispatch)
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    # 策略矩阵：这会让下面的步骤运行 3 次，分别在不同的系统上
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  # ---------------------------------------------------
+  # 1. Windows 构建任务
+  # ---------------------------------------------------
+  build-windows:
+    runs-on: windows-latest
     steps:
-      # 1. 拉取你的代码
-      - name: Check out code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 安装 uv (非常快)
+      # 安装 UPX (Windows 使用 choco 很方便)
+      - name: Install UPX
+        run: choco install upx
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      # 3. 设置 Python 环境 (这里指定 3.12，你可以改)
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.11
 
-      # 4. 创建虚拟环境并安装 Nuitka
-      # 如果你有 requirements.txt，可以在这里加一行: uv pip install -r requirements.txt
-      - name: Install Dependencies
+      - name: Build
         run: |
           uv venv
           uv pip install nuitka
+          # 注意：这里开启了 upx 和 lto 以获得最小体积
+          uv run nuitka --standalone --onefile --lto=yes --plugin-enable=upx --output-filename=app-windows.exe main.py
 
-      # 5. 执行 Nuitka 打包
-      # --assume-yes-for-downloads: 允许 Nuitka 自动下载必要的编译器（如 Windows 的 MinGW）
-      # --output-dir=build: 把生成的东西都放到 build 文件夹，方便后续收集
-      - name: Build Executable
-        run: |
-          uv run nuitka --standalone --onefile --assume-yes-for-downloads --output-dir=build main.py
-
-      # 6. 上传结果
-      # 这步会把 build 文件夹里的东西压缩并在 GitHub 页面提供下载
-      - name: Upload Artifacts
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: executable-${{ matrix.os }}
-          path: build/
+          name: app-windows
+          path: app-windows.exe
+
+  # ---------------------------------------------------
+  # 2. macOS 构建任务
+  # ---------------------------------------------------
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 安装 UPX (Mac 使用 brew)
+      - name: Install UPX
+        run: brew install upx
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Build
+        run: |
+          uv venv
+          uv pip install nuitka
+          # Mac 下 UPX 也是支持的
+          uv run nuitka --standalone --onefile --lto=yes --plugin-enable=upx --output-filename=app-macos main.py
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-macos
+          path: app-macos
+
+  # ---------------------------------------------------
+  # 3. Linux 构建任务 (Manylinux + uv)
+  # ---------------------------------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      # 使用 CentOS 7 基础的镜像，确保兼容麒麟和老系统
+      image: quay.io/pypa/manylinux2014_x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install System Deps
+        run: yum install -y git curl libffi-devel
+
+      # 手动安装 uv (因为容器里没有)
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Build
+        run: |
+          # 1. 使用容器内置的 Python 3.11 创建环境
+          uv venv --python /opt/python/cp311-cp311/bin/python
+          
+          # 2. 安装 Nuitka
+          uv pip install nuitka
+          
+          # 3. 开始编译
+          # Linux 下不建议在 Action 里强行配置 UPX，因为配置复杂且容易导致段错误
+          # 这里只开启 LTO，体积已经足够小 (约 3MB) 且最稳定
+          uv run nuitka --standalone --onefile --lto=yes --output-filename=app-linux main.py
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-linux
+          path: app-linux
