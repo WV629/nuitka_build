@@ -1,0 +1,55 @@
+name: Nuitka Build
+
+# 触发条件：
+# 1. 当代码推送到 main 分支时自动触发
+# 2. 允许你在网页上有一个按钮手动点击触发 (workflow_dispatch)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    # 策略矩阵：这会让下面的步骤运行 3 次，分别在不同的系统上
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 1. 拉取你的代码
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # 2. 安装 uv (非常快)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      # 3. 设置 Python 环境 (这里指定 3.12，你可以改)
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # 4. 创建虚拟环境并安装 Nuitka
+      # 如果你有 requirements.txt，可以在这里加一行: uv pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          uv venv
+          uv pip install nuitka
+
+      # 5. 执行 Nuitka 打包
+      # --assume-yes-for-downloads: 允许 Nuitka 自动下载必要的编译器（如 Windows 的 MinGW）
+      # --output-dir=build: 把生成的东西都放到 build 文件夹，方便后续收集
+      - name: Build Executable
+        run: |
+          uv run nuitka --standalone --onefile --assume-yes-for-downloads --output-dir=build main.py
+
+      # 6. 上传结果
+      # 这步会把 build 文件夹里的东西压缩并在 GitHub 页面提供下载
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: executable-${{ matrix.os }}
+          path: build/
