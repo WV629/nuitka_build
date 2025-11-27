@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -30,7 +30,7 @@ jobs:
 
       # 3. 设置 Python 环境 (这里指定 3.11，你可以改)
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.12
 
       # 4. 创建虚拟环境并安装 Nuitka
       # 如果你有 requirements.txt，可以在这里加一行: uv pip install -r requirements.txt
@@ -38,6 +38,7 @@ jobs:
         run: |
           uv venv
           uv pip install nuitka
+          uv sync
 
       # 5. 执行 Nuitka 打包
       # --assume-yes-for-downloads: 允许 Nuitka 自动下载必要的编译器（如 Windows 的 MinGW）
