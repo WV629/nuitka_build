@@ -43,7 +43,7 @@ jobs:
       # 5. 执行 Nuitka 打包
       # --assume-yes-for-downloads: 允许 Nuitka 自动下载必要的编译器（如 Windows 的 MinGW）
       # --output-dir=build: 把生成的东西都放到 build 文件夹，方便后续收集
-      - name: Build Executable
+      - name: Build Executable 
         run: |
           uv run nuitka --standalone --onefile --remove-output --assume-yes-for-downloads --output-dir=build main.py
 
