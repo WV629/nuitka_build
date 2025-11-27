@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -38,7 +38,6 @@ jobs:
         run: |
           uv venv
           uv pip install nuitka
-          uv sync
 
       # 5. 执行 Nuitka 打包
       # --assume-yes-for-downloads: 允许 Nuitka 自动下载必要的编译器（如 Windows 的 MinGW）
